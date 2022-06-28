@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using GooglePlayGames;
+using GooglePlayGames.BasicApi;
 using UnityEngine;
 using PlayFab;
 using PlayFab.ClientModels;
@@ -9,7 +11,7 @@ public class PlayfabManager : MonoBehaviour
 {
     [SerializeField] CanvasGroup _canvasGroup;
     [SerializeField] GameObject _loginObject;
-    
+
     string _playerID;
     public static PlayfabManager Instance { get; private set; }
 
@@ -27,7 +29,7 @@ public class PlayfabManager : MonoBehaviour
         Login();
 
         yield return new WaitForSeconds(2f);
-        
+
         GetPlayerInfo();
     }
 
@@ -45,13 +47,28 @@ public class PlayfabManager : MonoBehaviour
         //if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email)) return;
 
 #if UNITY_ANDROID
-        var request = new LoginWithAndroidDeviceIDRequest()
-        {
-            AndroidDeviceId = SystemInfo.deviceUniqueIdentifier,
-            CreateAccount = true,
-        };
 
-        PlayFabClientAPI.LoginWithAndroidDeviceID(request, HandleOnLoginSuccess, HandleOnLoginError);
+        PlayGamesClientConfiguration config = new PlayGamesClientConfiguration.Builder()
+            .RequestServerAuthCode(false).AddOauthScope("profile").Build();
+        PlayGamesPlatform.InitializeInstance(config);
+        PlayGamesPlatform.DebugLogEnabled = true;
+        PlayGamesPlatform.Activate();
+
+        Social.localUser.Authenticate((bool success) =>
+        {
+            var serverAuthCode = PlayGamesPlatform.Instance.GetServerAuthCode();
+            Debug.Log(serverAuthCode);
+            
+            var request = new LoginWithGoogleAccountRequest()
+            {
+                TitleId = PlayFabSettings.TitleId,
+                ServerAuthCode = serverAuthCode,
+                CreateAccount = true
+            };
+            
+            PlayFabClientAPI.LoginWithGoogleAccount(request, HandleOnLoginSuccess, HandleOnLoginError);
+        });
+
 #elif UNITY_IOS
         var request = new LoginWithIOSDeviceIDRequest()
         {
@@ -90,7 +107,7 @@ public class PlayfabManager : MonoBehaviour
     {
         var playerProfile = result.PlayerProfile;
         string displayName = playerProfile.DisplayName;
-        
+
         if (string.IsNullOrEmpty(displayName))
         {
             Debug.Log("player display name not exist");
@@ -112,10 +129,10 @@ public class PlayfabManager : MonoBehaviour
                 PlayFabId = _playerID,
                 Keys = new List<string>()
             };
-            
+
             request.Keys.Add("player_url");
-            
-            PlayFabClientAPI.GetUserData(request,HandleOnGetUserDataSuccess,HandleOnError);
+
+            PlayFabClientAPI.GetUserData(request, HandleOnGetUserDataSuccess, HandleOnError);
         }
     }
 
@@ -135,7 +152,6 @@ public class PlayfabManager : MonoBehaviour
         {
             Debug.Log("Player has url data");
             Debug.Log(result.Data["player_url"].Value);
-            
         }
     }
 
@@ -199,6 +215,7 @@ public class PlayfabManager : MonoBehaviour
     }
 
     string _url;
+
     public void CreateAccount(string userName, string url)
     {
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(url)) return;
@@ -224,8 +241,8 @@ public class PlayfabManager : MonoBehaviour
                 { "player_url", _url }
             }
         };
-        
-        PlayFabClientAPI.UpdateUserData(request,HandleOnUpdateDataSuccess,HandleOnError);
+
+        PlayFabClientAPI.UpdateUserData(request, HandleOnUpdateDataSuccess, HandleOnError);
     }
 
     void HandleOnUpdateDataSuccess(UpdateUserDataResult result)
@@ -243,7 +260,7 @@ public class PlayfabManager : MonoBehaviour
                 ShowDisplayName = true
             }
         };
-        
+
         PlayFabClientAPI.GetPlayerProfile(request, HandleOnGetProfileSuccess, HandleOnError);
     }
 }
