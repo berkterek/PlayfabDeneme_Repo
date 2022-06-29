@@ -1,7 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+
+#if UNITY_ANDROID
 using GooglePlayGames;
 using GooglePlayGames.BasicApi;
+#endif
+
 using UnityEngine;
 using PlayFab;
 using PlayFab.ClientModels;
@@ -45,8 +49,17 @@ public class PlayfabManager : MonoBehaviour
         // PlayFabClientAPI.LoginWithCustomID(request, HandleOnSuccess, HandleOnError);
 
         //if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email)) return;
+#if UNITY_EDITOR
 
-#if UNITY_ANDROID
+        var request = new LoginWithCustomIDRequest()
+        {
+            CustomId = SystemInfo.deviceUniqueIdentifier,
+            CreateAccount = true,
+        };
+        
+        PlayFabClientAPI.LoginWithCustomID(request, HandleOnLoginSuccess, HandleOnError);
+
+#elif UNITY_ANDROID
 
         PlayGamesClientConfiguration config = new PlayGamesClientConfiguration.Builder()
             .RequestServerAuthCode(false).AddOauthScope("profile").Build();
@@ -58,14 +71,14 @@ public class PlayfabManager : MonoBehaviour
         {
             var serverAuthCode = PlayGamesPlatform.Instance.GetServerAuthCode();
             Debug.Log(serverAuthCode);
-            
+
             var request = new LoginWithGoogleAccountRequest()
             {
                 TitleId = PlayFabSettings.TitleId,
                 ServerAuthCode = serverAuthCode,
                 CreateAccount = true
             };
-            
+
             PlayFabClientAPI.LoginWithGoogleAccount(request, HandleOnLoginSuccess, HandleOnLoginError);
         });
 
@@ -205,6 +218,7 @@ public class PlayfabManager : MonoBehaviour
         foreach (var entry in result.Leaderboard)
         {
             Debug.Log($"{entry.Position}. Name:{entry.PlayFabId} Score:{entry.StatValue}");
+            //Debug.Log($"{entry.Position}. Name:{entry.DisplayName} Score:{entry.StatValue}");
         }
     }
 
@@ -212,6 +226,26 @@ public class PlayfabManager : MonoBehaviour
     {
         Debug.Log("Failed get leaderboard");
         Debug.Log(result.GenerateErrorReport());
+    }
+
+    [ContextMenu(nameof(GetPlayerLeaderboard))]
+    public void GetPlayerLeaderboard()
+    {
+        var request = new GetLeaderboardAroundPlayerRequest()
+        {
+            MaxResultsCount = 1,
+            StatisticName = "Score"
+        };
+        PlayFabClientAPI.GetLeaderboardAroundPlayer(request, HandleOnSuccessGetPlayerLeaderboard, HandleOnError);
+    }
+
+    void HandleOnSuccessGetPlayerLeaderboard(GetLeaderboardAroundPlayerResult result)
+    {
+        foreach (var entry in result.Leaderboard)
+        {
+            //Debug.Log($"{entry.Position}. Name:{entry.PlayFabId} Score:{entry.StatValue}");
+            Debug.Log($"{entry.Position + 1}. Name:{entry.DisplayName} Score:{entry.StatValue}");
+        }
     }
 
     string _url;
