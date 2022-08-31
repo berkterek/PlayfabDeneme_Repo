@@ -56,11 +56,10 @@ public class PlayfabManager : MonoBehaviour
             CustomId = SystemInfo.deviceUniqueIdentifier,
             CreateAccount = true,
         };
-        
+
         PlayFabClientAPI.LoginWithCustomID(request, HandleOnLoginSuccess, HandleOnError);
 
 #elif UNITY_ANDROID
-
         PlayGamesClientConfiguration config = new PlayGamesClientConfiguration.Builder()
             .RequestServerAuthCode(false).AddOauthScope("profile").Build();
         PlayGamesPlatform.InitializeInstance(config);
@@ -187,7 +186,7 @@ public class PlayfabManager : MonoBehaviour
         PlayFabClientAPI.ExecuteCloudScript(new ExecuteCloudScriptRequest()
         {
             FunctionName = "updatePlayerScore",
-            FunctionParameter = new { score = newScore },
+            FunctionParameter = new { score = newScore, unityVersion = Application.version, targetId = _playerID },
             GeneratePlayStreamEvent = true
         }, HandleOnCloudSendLeaderboardDataSuccess, HandleOnError);
     }
